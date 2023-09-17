@@ -1,4 +1,5 @@
 #include "core/common.h"
+#include "nes.h"
 
 using std::vector;
 using std::ifstream;
@@ -13,15 +14,22 @@ int main (int argc, char *argv[]) {
 
   /* Open ROM file and check header */
   ifstream romFile(argv[1], std::ios::binary);
-  if (romFile == NULL) {
-    cout << "Error: Could not open ROM file\n";
+  if (!romFile) {
+    cout << "Error: Could not open file\n";
     return 1;
   }
+
+  std::unique_ptr<NES> nes = std::make_unique<NES>();
 
   // Read ROM into memory
   vector<u8> romData((std::istreambuf_iterator<char>(romFile)), {});
 
-  checkHeader(rom);
+  checkHeader(romData);
+
+  /* Main event loop */
+  bool quit = false;
+  while (!quit) {
+  }
 
   return 0;
 }

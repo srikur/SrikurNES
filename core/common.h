@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,8 +17,14 @@
 #include <vector>
 #include <iterator>
 #include <functional>
+#include <memory>
+#include <map>
 
 #include "../utilities/header.h"
+#include "apu.h"
+#include "cpu.h"
+#include "memory.h"
+#include "ppu.h"
 
 typedef enum {FALSE = 0, TRUE = 1} boolean;
 typedef unsigned char u8;
