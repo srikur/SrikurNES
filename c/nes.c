@@ -62,7 +62,7 @@ uint8_t readByte(uint16_t address);
 uint16_t readWord(uint16_t address);
 void writeByte(uint16_t address, uint8_t value);
 void writeWord(uint16_t address, uint16_t value);
-uint16_t getImmediate(uint16_t address);
+uint8_t getImmediate(uint16_t address);
 uint16_t getAbsolute(uint16_t address);
 uint16_t getAbsoluteX(uint16_t address);
 uint16_t getAbsoluteY(uint16_t address);
@@ -84,28 +84,55 @@ void AND(CPU* cpu, uint8_t value, uint8_t cycles) {
     cpu->clock->skipCycles += cycles;
 }
 
-void ASL();
+void ASL(CPU* cpu, uint8_t value, uint8_t cycles) {
+    SET_CARRY(cpu->registers.p, cpu->registers.acc & 0x80);
+    cpu->registers.acc <<= 1;
+    SET_ZERO(cpu->registers.p, cpu->registers.acc);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.acc);
+    cpu->clock->skipCycles += cycles;
+}
 
-void BCC();
+void BCC(CPU* cpu) {
+    if (!GET_CARRY(cpu->registers.p)) {
+        cpu->registers.pc += getImmediate(cpu->registers.pc);
+    }
+}
 
-void BCS();
+void BCS(CPU* cpu) {
+    if (GET_CARRY(cpu->registers.p)) {
+        cpu->registers.pc += getImmediate(cpu->registers.pc);
+    }
+}
 
-void BEQ();
+void BEQ(CPU* cpu) {
+    if (GET_ZERO(cpu->registers.p)) {
+        cpu->registers.pc += getImmediate(cpu->registers.pc);
+    }
+}
 
-void BIT();
+void BIT(CPU* cpu, uint8_t value, uint8_t cycles) {
+    SET_ZERO(cpu->registers.p, cpu->registers.acc & value);
+    SET_OVERFLOW(cpu->registers.p, value & 0x40);
+    SET_NEGATIVE(cpu->registers.p, value & 0x80);
+    cpu->clock->skipCycles += cycles;
+}
 
-void BMI();
+void BMI(CPU* cpu) {
+    if (GET_NEGATIVE(cpu->registers.p)) {
+        cpu->registers.pc += getImmediate(cpu->registers.pc);
+    }
+}
 
-void BNE();
+void BNE(CPU* cpu) {
+    if (!GET_ZERO(cpu->registers.p)) {
+        cpu->registers.pc += getImmediate(cpu->registers.pc);
+    }
+}
 
-/* From: http://www.6502.org/users/obelisk/6502/reference.html
-    * 
-    * BPL - Branch if positive
-    * If the negative flag is clear then add the relative displacement to the program counter to cause a branch to a new location.
-    *
-*/
-void BPL() {
-
+void BPL(CPU* cpu) {
+    if (!GET_NEGATIVE(cpu->registers.p)) {
+        cpu->registers.pc += getImmediate(cpu->registers.pc);
+    }
 }
 
 /* From: http://www.6502.org/users/obelisk/6502/reference.html
@@ -124,51 +151,146 @@ void BRK(CPU* cpu) {
     cpu->clock->skipCycles += 7;
 }
 
-void BVC();
+void BVC(CPU* cpu) {
+    if (!GET_OVERFLOW(cpu->registers.p)) {
+        cpu->registers.pc += getImmediate(cpu->registers.pc);
+    }
+}
 
-void BVS();
+void BVS(CPU* cpu) {
+    if (GET_OVERFLOW(cpu->registers.p)) {
+        cpu->registers.pc += getImmediate(cpu->registers.pc);
+    }
+}
 
-void CLC();
+void CLC(CPU* cpu) {
+    SET_CARRY(cpu->registers.p, 0);
+}
 
-void CLD();
+void CLD(CPU* cpu) {
+    SET_DECIMAL(cpu->registers.p, 0);
+}
 
-void CLI();
+void CLI(CPU* cpu) {
+    SET_INTERRUPT(cpu->registers.p, 0);
+}
 
-void CLV();
+void CLV(CPU* cpu) {
+    SET_OVERFLOW(cpu->registers.p, 0);
+}
 
-void CMP();
+void CMP(CPU* cpu, uint8_t value, uint8_t cycles) {
+    uint8_t result = cpu->registers.acc - value;
+    SET_CARRY(cpu->registers.p, cpu->registers.acc >= value);
+    SET_ZERO(cpu->registers.p, result == 0);
+    SET_NEGATIVE(cpu->registers.p, result);
+    cpu->clock->skipCycles += cycles;
+}
 
-void CPX();
+void CPX(CPU* cpu, uint8_t value, uint8_t cycles) {
+    uint8_t result = cpu->registers.x - value;
+    SET_CARRY(cpu->registers.p, cpu->registers.x >= value);
+    SET_ZERO(cpu->registers.p, result == 0);
+    SET_NEGATIVE(cpu->registers.p, result);
+    cpu->clock->skipCycles += cycles;
+}
 
-void CPY();
+void CPY(CPU* cpu, uint8_t value, uint8_t cycles) {
+    uint8_t result = cpu->registers.y - value;
+    SET_CARRY(cpu->registers.p, cpu->registers.y >= value);
+    SET_ZERO(cpu->registers.p, result == 0);
+    SET_NEGATIVE(cpu->registers.p, result);
+    cpu->clock->skipCycles += cycles;
+}
 
-void DEC();
+void DEC(CPU* cpu, uint16_t address, uint8_t cycles) {
+    uint8_t value = readByte(address) - 1;
+    writeByte(address, value);
+    SET_ZERO(cpu->registers.p, value == 0);
+    SET_NEGATIVE(cpu->registers.p, value);
+    cpu->clock->skipCycles += cycles;
+}
 
-void DEX();
+void DEX(CPU* cpu) {
+    cpu->registers.x--;
+    SET_ZERO(cpu->registers.p, cpu->registers.x == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.x);
+}
 
-void DEY();
+void DEY(CPU* cpu) {
+    cpu->registers.y--;
+    SET_ZERO(cpu->registers.p, cpu->registers.y == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.y);
+}
 
-void EOR();
+void EOR(CPU* cpu, uint8_t value, uint8_t cycles) {
+    cpu->registers.acc ^= value;
+    SET_ZERO(cpu->registers.p, cpu->registers.acc == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.acc);
+    cpu->clock->skipCycles += cycles;
+}
 
-void INC();
+void INC(CPU* cpu, uint16_t address, uint8_t cycles) {
+    uint8_t value = readByte(address) + 1;
+    writeByte(address, value);
+    SET_ZERO(cpu->registers.p, value == 0);
+    SET_NEGATIVE(cpu->registers.p, value);
+    cpu->clock->skipCycles += cycles;
+}
 
-void INX();
+void INX(CPU* cpu) {
+    cpu->registers.x++;
+    SET_ZERO(cpu->registers.p, cpu->registers.x == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.x);
+}
 
-void INY();
+void INY(CPU* cpu) {
+    cpu->registers.y++;
+    SET_ZERO(cpu->registers.p, cpu->registers.y == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.y);
+}
 
-void JMP();
+void JMP(CPU* cpu, uint16_t address) {
+    cpu->registers.pc = address;
+}
 
-void JSR();
+void JSR(CPU* cpu, uint16_t address) {
+    pushStack(cpu, (uint16_t)(cpu->registers.pc - 1));
+    cpu->registers.pc = address;
+}
 
-void LDA();
+void LDA(CPU* cpu, uint8_t value, uint8_t cycles) {
+    cpu->registers.acc = value;
+    SET_ZERO(cpu->registers.p, cpu->registers.acc == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.acc);
+    cpu->clock->skipCycles += cycles;
+}
 
-void LDX();
+void LDX(CPU* cpu, uint8_t value, uint8_t cycles) {
+    cpu->registers.x = value;
+    SET_ZERO(cpu->registers.p, cpu->registers.x == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.x);
+    cpu->clock->skipCycles += cycles;
+}
 
-void LDY();
+void LDY(CPU* cpu, uint8_t value, uint8_t cycles) {
+    cpu->registers.y = value;
+    SET_ZERO(cpu->registers.p, cpu->registers.y == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.y);
+    cpu->clock->skipCycles += cycles;
+}
 
-void LSR();
+void LSR(CPU* cpu, uint8_t value, uint8_t cycles) {
+    SET_CARRY(cpu->registers.p, value & 0x01);
+    value >>= 1;
+    SET_ZERO(cpu->registers.p, value == 0);
+    SET_NEGATIVE(cpu->registers.p, value);
+    cpu->clock->skipCycles += cycles;
+}
 
-void NOP();
+void NOP(CPU* cpu) {
+    // No operation
+}
 
 /* From: http://www.6502.org/users/obelisk/6502/reference.html
     * 
@@ -184,47 +306,121 @@ void ORA(CPU* cpu, uint8_t value, uint8_t cycles) {
     cpu->clock->skipCycles += cycles;
 }
 
-void PHA();
+void PHA(CPU* cpu) {
+    pushStack(cpu, cpu->registers.acc);
+}
 
-void PHP();
+void PHP(CPU* cpu) {
+    pushStack(cpu, cpu->registers.p);
+}
 
-void PLA();
+void PLA(CPU* cpu) {
+    cpu->registers.acc = popStack(cpu);
+    SET_ZERO(cpu->registers.p, cpu->registers.acc == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.acc);
+}
 
-void PLP();
+void PLP(CPU* cpu) {
+    cpu->registers.p = popStack(cpu);
+}
 
-void ROL();
+void ROL(CPU* cpu, uint8_t value, uint8_t cycles) {
+    uint8_t carry = GET_CARRY(cpu->registers.p);
+    SET_CARRY(cpu->registers.p, value & 0x80);
+    value = (value << 1) | carry;
+    SET_ZERO(cpu->registers.p, value == 0);
+    SET_NEGATIVE(cpu->registers.p, value);
+    cpu->clock->skipCycles += cycles;
+}
 
-void ROR();
+void ROR(CPU* cpu, uint8_t value, uint8_t cycles) {
+    uint8_t carry = GET_CARRY(cpu->registers.p);
+    SET_CARRY(cpu->registers.p, value & 0x01);
+    value = (value >> 1) | (carry << 7);
+    SET_ZERO(cpu->registers.p, value == 0);
+    SET_NEGATIVE(cpu->registers.p, value);
+    cpu->clock->skipCycles += cycles;
+}
 
-void RTI();
+void RTI(CPU* cpu) {
+    cpu->registers.p = popStack(cpu);
+    cpu->registers.pc = popStack(cpu);
+}
 
-void RTS();
+void RTS(CPU* cpu) {
+    cpu->registers.pc = popStack(cpu) + 1;
+}
 
-void SBC();
+void SBC(CPU* cpu, uint8_t value, uint8_t cycles) {
+    uint16_t result = cpu->registers.acc - value - (1 - GET_CARRY(cpu->registers.p));
+    SET_CARRY(cpu->registers.p, result < 0x100);
+    SET_ZERO(cpu->registers.p, (result & 0xFF) == 0);
+    SET_OVERFLOW(cpu->registers.p, ((cpu->registers.acc ^ result) & (cpu->registers.acc ^ value) & 0x80) != 0);
+    SET_NEGATIVE(cpu->registers.p, result);
+    cpu->registers.acc = result & 0xFF;
+    cpu->clock->skipCycles += cycles;
+}
 
-void SEC();
+void SEC(CPU* cpu) {
+    SET_CARRY(cpu->registers.p, 1);
+}
 
-void SED();
+void SED(CPU* cpu) {
+    SET_DECIMAL(cpu->registers.p, 1);
+}
 
-void SEI();
+void SEI(CPU* cpu) {
+    SET_INTERRUPT(cpu->registers.p, 1);
+}
 
-void STA();
+void STA(CPU* cpu, uint16_t address, uint8_t cycles) {
+    writeByte(address, cpu->registers.acc);
+    cpu->clock->skipCycles += cycles;
+}
 
-void STX();
+void STX(CPU* cpu, uint16_t address, uint8_t cycles) {
+    writeByte(address, cpu->registers.x);
+    cpu->clock->skipCycles += cycles;
+}
 
-void STY();
+void STY(CPU* cpu, uint16_t address, uint8_t cycles) {
+    writeByte(address, cpu->registers.y);
+    cpu->clock->skipCycles += cycles;
+}
 
-void TAX();
+void TAX(CPU* cpu) {
+    cpu->registers.x = cpu->registers.acc;
+    SET_ZERO(cpu->registers.p, cpu->registers.x == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.x);
+}
 
-void TAY();
+void TAY(CPU* cpu) {
+    cpu->registers.y = cpu->registers.acc;
+    SET_ZERO(cpu->registers.p, cpu->registers.y == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.y);
+}
 
-void TSX();
+void TSX(CPU* cpu) {
+    cpu->registers.x = cpu->registers.s;
+    SET_ZERO(cpu->registers.p, cpu->registers.x == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.x);
+}
 
-void TXA();
+void TXA(CPU* cpu) {
+    cpu->registers.acc = cpu->registers.x;
+    SET_ZERO(cpu->registers.p, cpu->registers.acc == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.acc);
+}
 
-void TXS();
+void TXS(CPU* cpu) {
+    cpu->registers.s = cpu->registers.x;
+}
 
-void TYA();
+void TYA(CPU* cpu) {
+    cpu->registers.acc = cpu->registers.y;
+    SET_ZERO(cpu->registers.p, cpu->registers.acc == 0);
+    SET_NEGATIVE(cpu->registers.p, cpu->registers.acc);
+}
 
 typedef struct clock {
     uint64_t cycles;
@@ -255,28 +451,19 @@ typedef struct graphics {
     uint8_t screen[0xF000];
 } Graphics;
 
-/* 2D instruction table (only for reference) */
-instrFunc instructions[256] = {
-    BRK, ORA, NOP, NOP, NOP, ORA, ASL, NOP, PHP, ORA, ASL, NOP, NOP, ORA, ASL, NOP,
-    BPL, ORA, NOP, NOP, NOP, ORA, ASL, NOP, CLC, ORA, NOP, NOP, NOP, ORA, ASL, NOP,
-    JSR, AND, NOP, NOP, BIT, AND, ROL, NOP, PLP, AND, ROL, NOP, BIT, AND, ROL, NOP,
-    BMI, AND, NOP, NOP, NOP, AND, ROL, NOP, SEC, AND, NOP, NOP, NOP, AND, ROL, NOP,
-    RTI, EOR, NOP, NOP, NOP, EOR, LSR, NOP, PHA, EOR, LSR, NOP, JMP, EOR, LSR, NOP,
-    BVC, EOR, NOP, NOP, NOP, EOR, LSR, NOP, CLI, EOR, NOP, NOP, NOP, EOR, LSR, NOP,
-    RTS, ADC, NOP, NOP, NOP, ADC, ROR, NOP, PLA, ADC, ROR, NOP, JMP, ADC, ROR, NOP,
-    BVS, ADC, NOP, NOP, NOP, ADC, ROR, NOP, SEI, ADC, NOP, NOP, NOP, ADC, ROR, NOP,
-    NOP, STA, NOP, NOP, STY, STA, STX, NOP, DEY, NOP, TXA, NOP, STY, STA, STX, NOP,
-    BCC, STA, NOP, NOP, STY, STA, STX, NOP, TYA, STA, TXS, NOP, NOP, STA, NOP, NOP,
-    LDY, LDA, LDX, NOP, LDY, LDA, LDX, NOP, TAY, LDA, TAX, NOP, LDY, LDA, LDX, NOP,
-    BCS, LDA, NOP, NOP, LDY, LDA, LDX, NOP, CLV, LDA, TSX, NOP, LDY, LDA, LDX, NOP,
-    CPY, CMP, NOP, NOP, CPY, CMP, DEC
-};
-
 void executeInstruction(uint8_t opcode, CPU* cpu) {
     switch (opcode) {
         case 0x00: { BRK(cpu); break; }
 
         // ADC
+        case 0x69: { PC++; ADC(cpu, getImmediate(PC), 2); PC++; break; }
+        case 0x65: { PC++; ADC(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0x75: { PC++; ADC(cpu, getZeroPageX(PC), 4); PC++; break; }
+        case 0x6D: { PC++; ADC(cpu, getAbsolute(PC), 4); PC += 2; break; }
+        case 0x7D: { PC++; ADC(cpu, getAbsoluteX(PC), 4); PC += 2; break; }
+        case 0x79: { PC++; ADC(cpu, getAbsoluteY(PC), 4); PC += 2; break; }
+        case 0x61: { PC++; ADC(cpu, getIndirectX(PC), 6); PC++; break; }
+        case 0x71: { PC++; ADC(cpu, getIndirectY(PC), 5); PC++; break; }
 
         // AND
         case 0x29: { PC++; AND(cpu, getImmediate(PC), 2); PC++; break; }
@@ -289,11 +476,146 @@ void executeInstruction(uint8_t opcode, CPU* cpu) {
         case 0x31: { PC++; AND(cpu, getIndirectY(PC), 5); PC++; break; }
 
         // ASL
-        case 0x0A: { PC++; ASL(cpu, 2); break; }
+        case 0x0A: { PC++; ASL(cpu, getImmediate(PC), 2); break; }
         case 0x06: { PC++; ASL(cpu, getZeroPage(PC), 5); PC++; break; }
         case 0x16: { PC++; ASL(cpu, getZeroPageX(PC), 6); PC++; break; }
         case 0x0E: { PC++; ASL(cpu, getAbsolute(PC), 6); PC += 2; break; }
         case 0x1E: { PC++; ASL(cpu, getAbsoluteX(PC), 7); PC += 2; break; }
+
+        // BCC
+        case 0x90: { PC++; BCC(cpu); PC++; break; }
+
+        // BCS
+        case 0xB0: { PC++; BCS(cpu); PC++; break; }
+
+        // BEQ
+        case 0xF0: { PC++; BEQ(cpu); PC++; break; }
+
+        // BIT
+        case 0x24: { PC++; BIT(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0x2C: { PC++; BIT(cpu, getAbsolute(PC), 4); PC += 2; break; }
+
+        // BMI
+        case 0x30: { PC++; BMI(cpu); PC++; break; }
+
+        // BNE
+        case 0xD0: { PC++; BNE(cpu); PC++; break; }
+
+        // BPL
+        case 0x10: { PC++; BPL(cpu); PC++; break; }
+
+        // BVC
+        case 0x50: { PC++; BVC(cpu); PC++; break; }
+
+        // BVS
+        case 0x70: { PC++; BVS(cpu); PC++; break; }
+
+        // CLC
+        case 0x18: { PC++; CLC(cpu); break; }
+
+        // CLD
+        case 0xD8: { PC++; CLD(cpu); break; }
+
+        // CLI
+        case 0x58: { PC++; CLI(cpu); break; }
+
+        // CLV
+        case 0xB8: { PC++; CLV(cpu); break; }
+
+        // CMP
+        case 0xC9: { PC++; CMP(cpu, getImmediate(PC), 2); PC++; break; }
+        case 0xC5: { PC++; CMP(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0xD5: { PC++; CMP(cpu, getZeroPageX(PC), 4); PC++; break; }
+        case 0xCD: { PC++; CMP(cpu, getAbsolute(PC), 4); PC += 2; break; }
+        case 0xDD: { PC++; CMP(cpu, getAbsoluteX(PC), 4); PC += 2; break; }
+        case 0xD9: { PC++; CMP(cpu, getAbsoluteY(PC), 4); PC += 2; break; }
+        case 0xC1: { PC++; CMP(cpu, getIndirectX(PC), 6); PC++; break; }
+        case 0xD1: { PC++; CMP(cpu, getIndirectY(PC), 5); PC++; break; }
+
+        // CPX
+        case 0xE0: { PC++; CPX(cpu, getImmediate(PC), 2); PC++; break; }
+        case 0xE4: { PC++; CPX(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0xEC: { PC++; CPX(cpu, getAbsolute(PC), 4); PC += 2; break; }
+
+        // CPY
+        case 0xC0: { PC++; CPY(cpu, getImmediate(PC), 2); PC++; break; }
+        case 0xC4: { PC++; CPY(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0xCC: { PC++; CPY(cpu, getAbsolute(PC), 4); PC += 2; break; }
+
+        // DEC
+        case 0xC6: { PC++; DEC(cpu, getZeroPage(PC), 5); PC++; break; }
+        case 0xD6: { PC++; DEC(cpu, getZeroPageX(PC), 6); PC++; break; }
+        case 0xCE: { PC++; DEC(cpu, getAbsolute(PC), 6); PC += 2; break; }
+        case 0xDE: { PC++; DEC(cpu, getAbsoluteX(PC), 7); PC += 2; break; }
+
+        // DEX
+        case 0xCA: { DEX(cpu); break; }
+
+        // DEY
+        case 0x88: { DEY(cpu); break; }
+
+        // EOR
+        case 0x49: { PC++; EOR(cpu, getImmediate(PC), 2); PC++; break; }
+        case 0x45: { PC++; EOR(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0x55: { PC++; EOR(cpu, getZeroPageX(PC), 4); PC++; break; }
+        case 0x4D: { PC++; EOR(cpu, getAbsolute(PC), 4); PC += 2; break; }
+        case 0x5D: { PC++; EOR(cpu, getAbsoluteX(PC), 4); PC += 2; break; }
+        case 0x59: { PC++; EOR(cpu, getAbsoluteY(PC), 4); PC += 2; break; }
+        case 0x41: { PC++; EOR(cpu, getIndirectX(PC), 6); PC++; break; }
+        case 0x51: { PC++; EOR(cpu, getIndirectY(PC), 5); PC++; break; }
+
+        // INC
+        case 0xE6: { PC++; INC(cpu, getZeroPage(PC), 5); PC++; break; }
+        case 0xF6: { PC++; INC(cpu, getZeroPageX(PC), 6); PC++; break; }
+        case 0xEE: { PC++; INC(cpu, getAbsolute(PC), 6); PC += 2; break; }
+        case 0xFE: { PC++; INC(cpu, getAbsoluteX(PC), 7); PC += 2; break; }
+
+        // INX
+        case 0xE8: { INX(cpu); break; }
+
+        // INY
+        case 0xC8: { INY(cpu); break; }
+
+        // JMP
+        case 0x4C: { PC++; JMP(cpu, getAbsolute(PC)); break; }
+        case 0x6C: { PC++; JMP(cpu, getIndirectX(PC)); break; }
+
+        // JSR
+        case 0x20: { PC++; JSR(cpu, getAbsolute(PC)); break; }
+
+        // LDA
+        case 0xA9: { PC++; LDA(cpu, getImmediate(PC), 2); PC++; break; }
+        case 0xA5: { PC++; LDA(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0xB5: { PC++; LDA(cpu, getZeroPageX(PC), 4); PC++; break; }
+        case 0xAD: { PC++; LDA(cpu, getAbsolute(PC), 4); PC += 2; break; }
+        case 0xBD: { PC++; LDA(cpu, getAbsoluteX(PC), 4); PC += 2; break; }
+        case 0xB9: { PC++; LDA(cpu, getAbsoluteY(PC), 4); PC += 2; break; }
+        case 0xA1: { PC++; LDA(cpu, getIndirectX(PC), 6); PC++; break; }
+        case 0xB1: { PC++; LDA(cpu, getIndirectY(PC), 5); PC++; break; }
+
+        // LDX
+        case 0xA2: { PC++; LDX(cpu, getImmediate(PC), 2); PC++; break; }
+        case 0xA6: { PC++; LDX(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0xB6: { PC++; LDX(cpu, getZeroPageY(PC), 4); PC++; break; }
+        case 0xAE: { PC++; LDX(cpu, getAbsolute(PC), 4); PC += 2; break; }
+        case 0xBE: { PC++; LDX(cpu, getAbsoluteY(PC), 4); PC += 2; break; }
+
+        // LDY
+        case 0xA0: { PC++; LDY(cpu, getImmediate(PC), 2); PC++; break; }
+        case 0xA4: { PC++; LDY(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0xB4: { PC++; LDY(cpu, getZeroPageX(PC), 4); PC++; break; }
+        case 0xAC: { PC++; LDY(cpu, getAbsolute(PC), 4); PC += 2; break; }
+        case 0xBC: { PC++; LDY(cpu, getAbsoluteX(PC), 4); PC += 2; break; }
+
+        // LSR
+        case 0x4A: { LSR(cpu, cpu->registers.acc, 2); break; }
+        case 0x46: { PC++; LSR(cpu, getZeroPage(PC), 5); PC++; break; }
+        case 0x56: { PC++; LSR(cpu, getZeroPageX(PC), 6); PC++; break; }
+        case 0x4E: { PC++; LSR(cpu, getAbsolute(PC), 6); PC += 2; break; }
+        case 0x5E: { PC++; LSR(cpu, getAbsoluteX(PC), 7); PC += 2; break; }
+
+        // NOP
+        case 0xEA: { NOP(cpu); break; }
 
         // ORA
         case 0x09: { PC++; ORA(cpu, getImmediate(PC), 2); PC++; break; }
@@ -304,6 +626,96 @@ void executeInstruction(uint8_t opcode, CPU* cpu) {
         case 0x19: { PC++; ORA(cpu, getAbsoluteY(PC), 4); PC += 2; break; }
         case 0x01: { PC++; ORA(cpu, getIndirectX(PC), 6); PC++; break; }
         case 0x11: { PC++; ORA(cpu, getIndirectY(PC), 5); PC++; break; }
+
+        // PHA
+        case 0x48: { PHA(cpu); break; }
+
+        // PHP
+        case 0x08: { PHP(cpu); break; }
+
+        // PLA
+        case 0x68: { PLA(cpu); break; }
+
+        // PLP
+        case 0x28: { PLP(cpu); break; }
+
+        // ROL
+        case 0x2A: { ROL(cpu, cpu->registers.acc, 2); break; }
+        case 0x26: { PC++; ROL(cpu, getZeroPage(PC), 5); PC++; break; }
+        case 0x36: { PC++; ROL(cpu, getZeroPageX(PC), 6); PC++; break; }
+        case 0x2E: { PC++; ROL(cpu, getAbsolute(PC), 6); PC += 2; break; }
+        case 0x3E: { PC++; ROL(cpu, getAbsoluteX(PC), 7); PC += 2; break; }
+
+        // ROR
+        case 0x6A: { ROR(cpu, cpu->registers.acc, 2); break; }
+        case 0x66: { PC++; ROR(cpu, getZeroPage(PC), 5); PC++; break; }
+        case 0x76: { PC++; ROR(cpu, getZeroPageX(PC), 6); PC++; break; }
+        case 0x6E: { PC++; ROR(cpu, getAbsolute(PC), 6); PC += 2; break; }
+        case 0x7E: { PC++; ROR(cpu, getAbsoluteX(PC), 7); PC += 2; break; }
+
+        // RTI
+        case 0x40: { RTI(cpu); break; }
+
+        // RTS
+        case 0x60: { RTS(cpu); break; }
+
+        // SBC
+        case 0xE9: { PC++; SBC(cpu, getImmediate(PC), 2); PC++; break; }
+        case 0xE5: { PC++; SBC(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0xF5: { PC++; SBC(cpu, getZeroPageX(PC), 4); PC++; break; }
+        case 0xED: { PC++; SBC(cpu, getAbsolute(PC), 4); PC += 2; break; }
+        case 0xFD: { PC++; SBC(cpu, getAbsoluteX(PC), 4); PC += 2; break; }
+        case 0xF9: { PC++; SBC(cpu, getAbsoluteY(PC), 4); PC += 2; break; }
+        case 0xE1: { PC++; SBC(cpu, getIndirectX(PC), 6); PC++; break; }
+        case 0xF1: { PC++; SBC(cpu, getIndirectY(PC), 5); PC++; break; }
+
+        // SEC
+        case 0x38: { SEC(cpu); break; }
+
+        // SED
+        case 0xF8: { SED(cpu); break; }
+
+        // SEI
+        case 0x78: { SEI(cpu); break; }
+
+        // STA
+        case 0x85: { PC++; STA(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0x95: { PC++; STA(cpu, getZeroPageX(PC), 4); PC++; break; }
+        case 0x8D: { PC++; STA(cpu, getAbsolute(PC), 4); PC += 2; break; }
+        case 0x9D: { PC++; STA(cpu, getAbsoluteX(PC), 5); PC += 2; break; }
+        case 0x99: { PC++; STA(cpu, getAbsoluteY(PC), 5); PC += 2; break; }
+        case 0x81: { PC++; STA(cpu, getIndirectX(PC), 6); PC++; break; }
+        case 0x91: { PC++; STA(cpu, getIndirectY(PC), 6); PC++; break; }
+
+        // STX
+        case 0x86: { PC++; STX(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0x96: { PC++; STX(cpu, getZeroPageY(PC), 4); PC++; break; }
+        case 0x8E: { PC++; STX(cpu, getAbsolute(PC), 4); PC += 2; break; }
+
+        // STY
+        case 0x84: { PC++; STY(cpu, getZeroPage(PC), 3); PC++; break; }
+        case 0x94: { PC++; STY(cpu, getZeroPageX(PC), 4); PC++; break; }
+        case 0x8C: { PC++; STY(cpu, getAbsolute(PC), 4); PC += 2; break; }
+
+        // TAX
+        case 0xAA: { TAX(cpu); break; }
+
+        // TAY
+        case 0xA8: { TAY(cpu); break; }
+
+        // TSX
+        case 0xBA: { TSX(cpu); break; }
+
+        // TXA
+        case 0x8A: { TXA(cpu); break; }
+
+        // TXS
+        case 0x9A: { TXS(cpu); break; }
+
+        // TYA
+        case 0x98: { TYA(cpu); break; }
+
+        default: { break; };
     }
 }
 
